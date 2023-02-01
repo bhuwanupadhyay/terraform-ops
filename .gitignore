@@ -42,3 +42,6 @@ terraform.rc
 
 .infracost/
 .terraform.lock.hcl
+.idea/
+*.iml
+.vscode/

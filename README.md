@@ -18,3 +18,16 @@ This repository contains reusable modules for TerraformOps.
 ### GCP
 
 * [redis-cluster-with-gcp-memorystore](gcp/redis-cluster-with-gcp-memorystore)
+
+
+
+## Usage
+
+```terraform
+module "<module>" {
+  source      = "git::https://github.com/bhuwanupadhyay/terraform-ops.git//<cloud_provider>/<module>"
+
+  ...module inputs...
+
+}
+```

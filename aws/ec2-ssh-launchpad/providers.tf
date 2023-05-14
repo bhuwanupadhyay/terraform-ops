@@ -6,11 +6,6 @@ terraform {
       version = "~> 4.0"
     }
   }
-  backend "s3" {}
-}
-
-variable "region" {
-  default = "us-east-1"
 }
 
 provider "aws" {
@@ -18,15 +13,5 @@ provider "aws" {
 }
 
 provider "aws" {
-  alias  = "main"
   region = var.region
-}
-
-module "this" {
-  source      = "../"
-  domain_name = "my-static-site.com"
-  region      = var.region
-  tags        = {
-    Env = "Prod"
-  }
 }

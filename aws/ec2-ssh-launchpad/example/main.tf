@@ -6,7 +6,6 @@ terraform {
       version = "~> 4.0"
     }
   }
-  backend "s3" {}
 }
 
 variable "region" {
@@ -17,16 +16,14 @@ provider "aws" {
   region = var.region
 }
 
-provider "aws" {
-  alias  = "main"
-  region = var.region
-}
-
 module "this" {
-  source      = "../"
-  domain_name = "my-static-site.com"
-  region      = var.region
-  tags        = {
+  source            = "../"
+  launchpad_name    = "test"
+  aws_instance_ami  = "ami-0d8f6eb4f641ef691"
+  aws_instance_type = "t2.micro"
+  aws_instance_user = "ubuntu"
+  region            = var.region
+  tags              = {
     Env = "Prod"
   }
 }

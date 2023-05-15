@@ -17,13 +17,15 @@ provider "aws" {
 }
 
 module "this" {
-  source            = "../"
-  launchpad_name    = "test"
-  aws_instance_ami  = "ami-0d8f6eb4f641ef691"
-  aws_instance_type = "t2.micro"
-  aws_instance_user = "ubuntu"
-  region            = var.region
-  tags              = {
+  source                           = "../"
+  launchpad_name                   = "test"
+  aws_instance_ami                 = "ami-0d8f6eb4f641ef691"
+  aws_instance_type                = "t2.micro"
+  aws_instance_user                = "ubuntu"
+  aws_volume_size                  = 8
+  aws_volume_delete_on_termination = true
+  region                           = var.region
+  tags                             = {
     Env = "Prod"
   }
 }

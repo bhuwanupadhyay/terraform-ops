@@ -88,8 +88,8 @@ resource "aws_instance" "ec2" {
 
   root_block_device {
     volume_type           = "gp2"
-    volume_size           = "1000"
-    delete_on_termination = true
+    volume_size           = var.aws_volume_size
+    delete_on_termination = var.aws_volume_delete_on_termination
   }
 
   associate_public_ip_address = true

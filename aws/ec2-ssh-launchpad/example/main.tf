@@ -17,9 +17,13 @@ provider "aws" {
 }
 
 module "this" {
-  source                = "../"
-  launchpad_name        = "test"
-  aws_availability_zone = "${var.region}a"
-  instance_ami          = "ami-0d8f6eb4f641ef691"
-  instance_type         = "t2.micro"
+  source            = "../"
+  launchpad_name    = "test"
+  aws_instance_ami  = "ami-0d8f6eb4f641ef691"
+  aws_instance_type = "t2.micro"
+  aws_instance_user = "ubuntu"
+  region            = var.region
+  tags              = {
+    Env = "Prod"
+  }
 }

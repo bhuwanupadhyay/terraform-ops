@@ -1,34 +1,43 @@
-data "aws_region" "available" {}
-data "aws_availability_zones" "selected" {}
-
-
 locals {
   launchpad_name = var.launchpad_name
 
   vpc_cidr = "10.0.0.0/16"
-  azs      = slice(data.aws_availability_zones.selected.names, 0, 1)
 }
 
-# vpc
-module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "3.18.1"
+resource "aws_vpc" "vps-env" {
+  cidr_block           = local.vpc_cidr
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+}
 
-  name = local.launchpad_name
-  cidr = local.vpc_cidr
+resource "aws_subnet" "subnet-uno" {
+  cidr_block        = cidrsubnet(aws_vpc.vps-env.cidr_block, 3, 1)
+  vpc_id            = aws_vpc.vps-env.id
+  availability_zone = var.aws_availability_zone
+}
 
-  azs             = local.azs
-  private_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 4, k)]
-  public_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 48)]
+resource "aws_security_group" "ingress-ssh-vps" {
+  name   = "allow-ssh-sg"
+  vpc_id = aws_vpc.vps-env.id
 
-  public_subnet_tags = {
-    "Tier" = "Public"
+  ingress {
+    cidr_blocks = [
+      "0.0.0.0/0"
+    ]
+
+    from_port = 22
+    to_port   = 22
+    protocol  = "tcp"
   }
 
-  private_subnet_tags = {
-    "Tier" = "Private"
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
+
 
 # ssh key
 resource "tls_private_key" "pk" {
@@ -36,107 +45,50 @@ resource "tls_private_key" "pk" {
   rsa_bits  = 4096
 }
 
-resource "aws_key_pair" "kp" {
+resource "aws_key_pair" "ssh_key" {
   key_name   = local.launchpad_name
   public_key = tls_private_key.pk.public_key_openssh
 }
 
-resource "local_file" "kp" {
+resource "local_file" "ssh_key" {
   filename        = "${path.cwd}/build/ssh_${local.launchpad_name}.pem"
   content         = sensitive(tls_private_key.pk.private_key_pem)
   file_permission = "400"
 }
 
-# ec2 instance
-
-resource "aws_security_group" "ec2" {
-  name   = "${local.launchpad_name}-allow-all-sg"
-  vpc_id = module.vpc.vpc_id
-
-  //  SSH
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  tags = {
-    Name = local.launchpad_name
-  }
-}
-
-resource "aws_spot_instance_request" "ec2" {
-  count             = var.spot_instance ? 1 : 0
-  availability_zone = data.aws_availability_zones.selected.names[0]
-  ami               = var.aws_instance_ami
-  instance_type     = var.aws_instance_type
-  key_name          = aws_key_pair.kp.key_name
-  subnet_id         = module.vpc.public_subnets[0]
-  spot_price        = var.spot_price
-  spot_type         = var.spot_type
-
-  vpc_security_group_ids = [
-    aws_security_group.ec2.id
-  ]
-
-  root_block_device {
-    volume_type           = "gp2"
-    volume_size           = var.aws_volume_size
-    delete_on_termination = var.aws_volume_delete_on_termination
-  }
-
+resource "aws_spot_instance_request" "spot" {
+  ami                         = var.instance_ami
+  spot_price                  = var.spot_price
+  instance_type               = var.instance_type
+  spot_type                   = var.spot_type
+  # block_duration_minutes = 120
+  wait_for_fulfillment        = true
+  key_name                    = aws_key_pair.ssh_key.key_name
+  count                       = var.spot_instance ? 1 : 0
   associate_public_ip_address = true
 
-  tags = {
-    Name = local.launchpad_name
-  }
-
-  lifecycle {
-    prevent_destroy = false
-  }
-
+  security_groups = [
+    aws_security_group.ingress-ssh-vps.id
+  ]
+  subnet_id = aws_subnet.subnet-uno.id
 }
 
-resource "aws_instance" "ec2" {
-  count             = var.spot_instance ? 0 : 1
-  availability_zone = data.aws_availability_zones.selected.names[0]
-  ami               = var.aws_instance_ami
-  instance_type     = var.aws_instance_type
-  key_name          = aws_key_pair.kp.key_name
-  subnet_id         = module.vpc.public_subnets[0]
-
-  vpc_security_group_ids = [
-    aws_security_group.ec2.id
-  ]
-
-  root_block_device {
-    volume_type           = "gp2"
-    volume_size           = var.aws_volume_size
-    delete_on_termination = var.aws_volume_delete_on_termination
-  }
-
+resource "aws_instance" "on_demand" {
+  ami                         = var.instance_ami
+  instance_type               = var.instance_type
+  key_name                    = aws_key_pair.ssh_key.key_name
+  subnet_id                   = aws_subnet.subnet-uno.id
   associate_public_ip_address = true
-
-  tags = {
-    Name = local.launchpad_name
-  }
-
-  lifecycle {
-    prevent_destroy = false
-  }
-
+  vpc_security_group_ids      = [
+    aws_security_group.ingress-ssh-vps.id
+  ]
+  count = var.spot_instance ? 0 : 1
 }
 
 locals {
-  public_dns = var.spot_instance ? aws_spot_instance_request.ec2.0.public_dns : aws_instance.ec2.0.public_dns
+  public_dns = var.spot_instance ? aws_spot_instance_request.spot.0.public_dns : aws_instance.on_demand.0.public_dns
 }
 
 output "ssh_connect" {
-  value = "ssh -i ${local_file.kp.filename} ${var.aws_instance_user}@${local.public_dns}"
+  value = "ssh -i ${local_file.ssh_key.filename} ${var.aws_instance_user}@${local.public_dns}"
 }

@@ -76,12 +76,14 @@ resource "aws_security_group" "ec2" {
 }
 
 resource "aws_spot_instance_request" "ec2" {
-  count = var.spot_instance ? 1 : 0
+  count             = var.spot_instance ? 1 : 0
   availability_zone = data.aws_availability_zones.selected.names[0]
   ami               = var.aws_instance_ami
   instance_type     = var.aws_instance_type
   key_name          = aws_key_pair.kp.key_name
   subnet_id         = module.vpc.public_subnets[0]
+  spot_price        = var.spot_price
+  spot_type         = var.spot_type
 
   vpc_security_group_ids = [
     aws_security_group.ec2.id
@@ -108,7 +110,7 @@ resource "aws_spot_instance_request" "ec2" {
 }
 
 resource "aws_instance" "ec2" {
-  count = var.spot_instance ? 0 : 1
+  count             = var.spot_instance ? 0 : 1
   availability_zone = data.aws_availability_zones.selected.names[0]
   ami               = var.aws_instance_ami
   instance_type     = var.aws_instance_type

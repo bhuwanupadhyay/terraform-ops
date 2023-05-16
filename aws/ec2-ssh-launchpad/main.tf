@@ -87,6 +87,8 @@ resource "aws_spot_instance_request" "ec2" {
     aws_security_group.ec2.id
   ]
 
+  wait_for_fulfillment = true
+
   root_block_device {
     volume_type           = "gp2"
     volume_size           = var.aws_volume_size

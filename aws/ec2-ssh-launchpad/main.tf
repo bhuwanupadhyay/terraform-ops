@@ -75,7 +75,38 @@ resource "aws_security_group" "ec2" {
   }
 }
 
+resource "aws_spot_instance_request" "ec2" {
+  count = var.spot_instance ? 1 : 0
+  availability_zone = data.aws_availability_zones.selected.names[0]
+  ami               = var.aws_instance_ami
+  instance_type     = var.aws_instance_type
+  key_name          = aws_key_pair.kp.key_name
+  subnet_id         = module.vpc.public_subnets[0]
+
+  vpc_security_group_ids = [
+    aws_security_group.ec2.id
+  ]
+
+  root_block_device {
+    volume_type           = "gp2"
+    volume_size           = var.aws_volume_size
+    delete_on_termination = var.aws_volume_delete_on_termination
+  }
+
+  associate_public_ip_address = true
+
+  tags = {
+    Name = local.launchpad_name
+  }
+
+  lifecycle {
+    prevent_destroy = false
+  }
+
+}
+
 resource "aws_instance" "ec2" {
+  count = var.spot_instance ? 0 : 1
   availability_zone = data.aws_availability_zones.selected.names[0]
   ami               = var.aws_instance_ami
   instance_type     = var.aws_instance_type

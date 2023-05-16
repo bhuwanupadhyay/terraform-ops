@@ -11,10 +11,6 @@ module "ec2-ssh-launchpad" {
   aws_instance_ami  = "ami-0d8f6eb4f641ef691"
   aws_instance_type = "t2.micro"
   aws_instance_user = "ubuntu"
-  region            = "us-east-1"
-  tags              = {
-    Env = "Prod"
-  }
 }
 ```
 

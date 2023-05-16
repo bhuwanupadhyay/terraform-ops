@@ -135,6 +135,10 @@ resource "aws_instance" "ec2" {
 
 }
 
+locals {
+  public_dns = var.spot_instance ? aws_spot_instance_request.ec2.0.public_dns : aws_instance.ec2.0.public_dns
+}
+
 output "ssh_connect" {
-  value = "ssh -i ${local_file.kp.filename} ${var.aws_instance_user}@${aws_instance.ec2.public_dns}"
+  value = "ssh -i ${local_file.kp.filename} ${var.aws_instance_user}@${local.public_dns}"
 }
